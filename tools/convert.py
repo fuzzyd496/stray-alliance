@@ -114,6 +114,18 @@ def read_clan(path, clan_id):
             m = BOSS_LEVEL.search(str(header[c])) if len(header) > c and header[c] else None
             boss_levels.append(int(m.group(1).replace(",", "")) if m else None)
 
+        # Row 1 cells above the day headers hold free-text result notes,
+        # e.g. "2-0" or "Cleared, overloaded opponent". Excel silently turns
+        # "1-1" into the date Jan 1, so dates are mapped back to month-day.
+        row1 = rows[0] if rows else ()
+        day_notes = []
+        for c in range(2, 5):
+            v = row1[c] if len(row1) > c else None
+            if isinstance(v, (datetime, date)):
+                v = f"{v.month}-{v.day}"
+            s = str(v).strip() if v is not None else ""
+            day_notes.append(s if s else None)
+
         players = []
         for row in rows[2:]:
             if not row or row[0] is None or str(row[0]).strip() == "":
@@ -138,6 +150,7 @@ def read_clan(path, clan_id):
             "placement": res.get("placement"),
             "ticketsUsed": res.get("ticketsUsed"),
             "ticketsLeft": res.get("ticketsLeft"),
+            "dayNotes": day_notes,
             "dayTracked": day_tracked,
             "bossLevels": boss_levels,  # legacy: boss level faced, early weeks only
             "players": players,

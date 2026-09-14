@@ -29,6 +29,17 @@
     return `<a class="plink" href="players.html#${cid}:${encodeURIComponent(name)}" title="View player history">${esc(name)}</a>`;
   }
 
+  // Free-text day result note from Excel; "N-N" scores get a colored pill
+  function noteHtml(note) {
+    if (!note) return null;
+    const m = note.match(/^(\d)\s*-\s*(\d)$/);
+    if (m) {
+      const cls = +m[1] > +m[2] ? "good" : +m[1] < +m[2] ? "bad" : "warn";
+      return `<span class="pill ${cls}">${m[1]}–${m[2]}</span>`;
+    }
+    return `<span class="pill faint" title="${esc(note)}">${esc(note)}</span>`;
+  }
+
   function placeChip(p) {
     if (!p) return '<span class="place px">—</span>';
     const cls = { "1st": "p1", "2nd": "p2", "3rd": "p3", "4th": "p4" }[p] || "px";
@@ -320,18 +331,21 @@
       const opp = mw.opponents || [];
       const days = mw.days || [];
       return [0, 1, 2].map((d) => {
-        const dm = days[d] || {};
-        const res = [];
-        if (dm.cleared === true) res.push('<span class="pill good">Cleared them</span>');
-        if (dm.cleared === false) res.push('<span class="pill bad">Didn’t clear</span>');
-        if (dm.held === true) res.push('<span class="pill good">Held</span>');
-        if (dm.held === false) res.push('<span class="pill bad">They cleared us</span>');
+        let res = noteHtml(week.dayNotes && week.dayNotes[d]);
+        if (!res) {
+          const dm = days[d] || {};
+          const pills = [];
+          if (dm.cleared === true) pills.push('<span class="pill good">Cleared them</span>');
+          if (dm.cleared === false) pills.push('<span class="pill bad">Didn’t clear</span>');
+          if (dm.held === true) pills.push('<span class="pill good">Held</span>');
+          if (dm.held === false) pills.push('<span class="pill bad">They cleared us</span>');
+          res = pills.join(" ");
+        }
         const tracked = week.dayTracked[d];
         return `<tr>
-          <td>Day ${d + 1}</td>
-          <td>${opp[d] ? esc(opp[d]) : '<span class="note">—</span>'}</td>
+          <td>Day ${d + 1}${opp[d] ? `<div class="note">${esc(opp[d])}</div>` : ""}</td>
           <td class="num">${tracked ? fmt(s.dayTotals[d]) : '<span class="pill faint">not tracked</span>'}</td>
-          <td>${res.join(" ") || '<span class="note">—</span>'}</td>
+          <td>${res || '<span class="note">—</span>'}</td>
         </tr>`;
       }).join("");
     }
@@ -365,14 +379,14 @@
       <div class="grid cols-2">
         <div class="card">
           <h2>Battle Phase — ${esc(META.apaw.short)}</h2>
-          <p class="sub">Top-30 medal totals per day. Opponents &amp; results appear once recorded.</p>
-          <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Day</th><th>Opponent</th><th class="num">Our Medals</th><th>Result</th></tr></thead>
+          <p class="sub">Top-30 medal totals per day. Results appear once noted in the weekly sheet.</p>
+          <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Day</th><th class="num">Our Medals</th><th>Result</th></tr></thead>
           <tbody>${battleRows("apaw", aw)}</tbody></table></div>
         </div>
         <div class="card">
           <h2>Battle Phase — ${esc(META.soc.short)}</h2>
-          <p class="sub">Top-30 medal totals per day. Opponents &amp; results appear once recorded.</p>
-          <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Day</th><th>Opponent</th><th class="num">Our Medals</th><th>Result</th></tr></thead>
+          <p class="sub">Top-30 medal totals per day. Results appear once noted in the weekly sheet.</p>
+          <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Day</th><th class="num">Our Medals</th><th>Result</th></tr></thead>
           <tbody>${battleRows("soc", sw)}</tbody></table></div>
         </div>
       </div>
@@ -455,8 +469,10 @@
           <td><span class="chiprow">${chips.join("") || '<span class="pill faint">—</span>'}</span></td></tr>`;
       });
 
-      const dayHead = [0, 1, 2].map((d) =>
-        `<th class="num">Day ${d + 1}${week.dayTracked[d] ? "" : " ·"}</th>`).join("");
+      const dayHead = [0, 1, 2].map((d) => {
+        const note = noteHtml(week.dayNotes && week.dayNotes[d]);
+        return `<th class="num">Day ${d + 1}${week.dayTracked[d] ? "" : " ·"}${note ? `<div style="margin-top:2px">${note}</div>` : ""}</th>`;
+      }).join("");
       const untrackedNote = week.dayTracked.every(Boolean) ? "" :
         `<p class="note">· Days ${week.dayTracked.map((t, i) => (t ? null : i + 1)).filter(Boolean).join(", ")} weren’t recorded this week (blowout — full participation not required).</p>`;
 

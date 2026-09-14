@@ -24,9 +24,14 @@ cutoffs, boss totals, participation, trends) are computed in the browser from `d
    the columns (`Tickets Used`, `Tickets Remaining`) and they can be in any order —
    the converter finds them by name. The site shows tickets used per week and the
    most recent remaining count as the clan's current tickets.
-4. (Optional) Record opponent names and daily cleared/held results by editing
-   [data/manual.js](data/manual.js). Everything optional; missing values show as "—".
-5. Commit and push. GitHub Pages redeploys automatically.
+4. (Optional) Note each battle day's result in the weekly sheet: **row 1, in the
+   cell above each day header** (`1`, `2`, `3`). Free text — e.g. `2-0`, `1-1`,
+   or `Cleared, overloaded opponent`. Scores like `2-0` render as colored
+   win/tie/loss pills; anything else shows as written. (Excel turns `1-1` into a
+   date — that's fine, the converter maps it back.)
+5. (Optional) Record opponent names by editing [data/manual.js](data/manual.js).
+   Everything optional; missing values show as "—".
+6. Commit and push. GitHub Pages redeploys automatically.
 
 ## Data conventions
 

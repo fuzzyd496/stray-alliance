@@ -188,6 +188,10 @@ main { padding: 26px 0 60px; }
 .pill.good { color: var(--good); background: var(--good-soft); }
 .pill.bad { color: var(--bad); background: var(--bad-soft); }
 .pill.faint { color: var(--text-soft); background: var(--bg); }
+.pill.warn { color: #b07c1f; background: var(--warn-soft); }
+
+/* long day-result notes in table headers: truncate, full text on hover */
+.tbl th .pill { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: bottom; }
 
 .chiprow { display: inline-flex; gap: 4px; }
 .chiprow .pill { padding: 1px 7px; font-size: 10.5px; }

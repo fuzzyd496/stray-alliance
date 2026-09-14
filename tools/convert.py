@@ -157,6 +157,24 @@ def read_clan(path, clan_id):
         })
 
     wb.close()
+
+    # Results rows with no matching weekly sheet (e.g. a week before score
+    # tracking began) still show placement in the history — no player data.
+    have = {w["date"] for w in weeks}
+    for key, res in results.items():
+        if key in have:
+            continue
+        weeks.append({
+            "date": key,
+            "placement": res.get("placement"),
+            "ticketsUsed": res.get("ticketsUsed"),
+            "ticketsLeft": res.get("ticketsLeft"),
+            "dayNotes": [None, None, None],
+            "dayTracked": [False, False, False],
+            "bossLevels": [None, None, None],
+            "players": [],
+        })
+
     weeks.sort(key=lambda w: w["date"])
     # current ticket count = most recent week with a remaining count recorded
     tickets = next((w["ticketsLeft"] for w in reversed(weeks) if w["ticketsLeft"] is not None), None)

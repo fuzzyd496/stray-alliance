@@ -80,7 +80,7 @@
   function weekSummary(week) {
     const board = p1Board(week);
     const top = board.slice(0, TOP_N);
-    const bossSent = top.reduce((s, r) => s + r.score, 0);
+    const bossSent = top.length ? top.reduce((s, r) => s + r.score, 0) : null;
     const cutoff = board.length >= TOP_N ? board[TOP_N - 1].score : (board.length ? board[board.length - 1].score : null);
     const dayTotals = [0, 1, 2].map((d) => {
       const b = dayBoard(week, d);
@@ -479,7 +479,7 @@
         const note = noteHtml(week.dayNotes && week.dayNotes[d]);
         return `<th class="num">Day ${d + 1}${week.dayTracked[d] ? "" : " ·"}${note ? `<div style="margin-top:2px">${note}</div>` : ""}</th>`;
       }).join("");
-      const untrackedNote = week.dayTracked.every(Boolean) ? "" :
+      const untrackedNote = !board.length || week.dayTracked.every(Boolean) ? "" :
         `<p class="note">· Days ${week.dayTracked.map((t, i) => (t ? null : i + 1)).filter(Boolean).join(", ")} weren’t recorded this week (blowout — full participation not required).</p>`;
 
       const totalsRow = `<tr><td></td><td><b>Top-30 total</b></td><td class="num"><b>${fmt(s.bossSent)}</b></td>
@@ -497,7 +497,7 @@
           <h2>Week of ${fmtDate(week.date, true)}
             <span class="right"><select class="week-pick" id="weekPick">${options}</select></span></h2>
           <div class="stats">
-            <div class="stat"><div class="v">${s.members}</div><div class="l">Members</div></div>
+            <div class="stat"><div class="v">${s.members || "—"}</div><div class="l">Members</div></div>
             <div class="stat"><div class="v">${fmt(s.bossSent)}</div><div class="l">P1 Boss Sent</div></div>
             <div class="stat"><div class="v">${fmt(s.cutoff)}</div><div class="l">Top-30 Cutoff</div></div>
             <div class="stat"><div class="v">${placeChip(week.placement)}</div><div class="l">Placement</div></div>
@@ -509,11 +509,12 @@
 
         <div class="card">
           <h2>Weekly Leaderboard</h2>
-          <p class="sub">Ranked by P1 (Expedition). Each column has its own Top 30 — dark values count toward that column’s clan total, faint values don’t. “Counts in” shows exactly which totals include each player.</p>
+          ${board.length ? `<p class="sub">Ranked by P1 (Expedition). Each column has its own Top 30 — dark values count toward that column’s clan total, faint values don’t. “Counts in” shows exactly which totals include each player.</p>` :
+            '<p class="note" style="margin-bottom:0">No player scores were recorded for this week — only the final placement.</p>'}
           ${untrackedNote}
-          <div class="tbl-wrap"><table class="tbl">
+          ${board.length ? `<div class="tbl-wrap"><table class="tbl">
             <thead><tr><th class="rank">#</th><th>Player</th><th class="num">P1</th>${dayHead}<th>Counts In</th></tr></thead>
-            <tbody>${rows}${totalsRow}</tbody></table></div>
+            <tbody>${rows}${totalsRow}</tbody></table></div>` : ""}
         </div>
         <div class="spacer"></div>
 
@@ -532,7 +533,7 @@
           <tbody>${weeks.slice().reverse().map((w) => {
             const ws = weekSummary(w);
             return `<tr><td>${fmtDate(w.date, true)}</td><td>${placeChip(w.placement)}</td>
-              <td class="num">${fmt(ws.bossSent)}</td><td class="num">${fmt(ws.cutoff)}</td><td class="num">${ws.members}</td></tr>`;
+              <td class="num">${fmt(ws.bossSent)}</td><td class="num">${fmt(ws.cutoff)}</td><td class="num">${ws.members || "—"}</td></tr>`;
           }).join("")}</tbody></table></div>
         </div>`;
 
@@ -565,7 +566,7 @@
             <td class="num">${w.ticketsUsed != null ? w.ticketsUsed : "—"}</td>
             <td class="num">${fmt(s.bossSent)}</td>
             <td class="num">${fmt(s.cutoff)}</td>
-            <td class="num">${s.members}</td>
+            <td class="num">${s.members || "—"}</td>
           </tr>`;
         })
       ).join("");

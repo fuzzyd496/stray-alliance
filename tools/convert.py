@@ -46,21 +46,35 @@ HEADER_ALIASES = {
 def read_results(ws):
     """Parse the Results sheet: per-week placement plus optional ticket columns.
 
-    Columns default to A=date, B=place, C=tickets used, D=tickets remaining.
-    A header row naming any of those (see HEADER_ALIASES, any order) overrides
-    the defaults — unnamed columns keep their default only if not claimed by a
-    header. Non-numeric cells (like a stray date) are ignored safely.
+    Columns: A=date, B=place. Without a header row, the ticket columns are
+    found automatically — the first two columns after Place that contain
+    numbers (columns holding dates, like SOC's recorded-on column, are
+    skipped) are Tickets Used and Tickets Remaining, left to right.
+    A header row naming the columns (see HEADER_ALIASES, any order)
+    overrides the auto-detection.
     """
     rows = list(ws.iter_rows(values_only=True))
-    cols = {"place": 1, "used": 2, "left": 3}
+    cols = {"place": 1, "used": None, "left": None}
+    header_found = False
     for row in rows:
         header = {str(c).strip().lower(): i for i, c in enumerate(row) if isinstance(c, str)}
         hit = {HEADER_ALIASES[k]: i for k, i in header.items() if k in HEADER_ALIASES}
         if hit:
-            claimed = set(hit.values())
-            cols = {k: (i if i not in claimed else None) for k, i in cols.items()}
             cols.update(hit)
+            header_found = True
             break
+
+    if not header_found:
+        numeric_cols = []
+        width = max((len(r) for r in rows), default=0)
+        for i in range(2, width):
+            vals = [r[i] for r in rows if len(r) > i and r[i] is not None]
+            if not vals or any(isinstance(v, (datetime, date)) for v in vals):
+                continue
+            if any(cell_num(v) is not None for v in vals):
+                numeric_cols.append(i)
+        cols["used"] = numeric_cols[0] if numeric_cols else None
+        cols["left"] = numeric_cols[1] if len(numeric_cols) > 1 else None
 
     def cell(row, key):
         i = cols.get(key)

@@ -604,7 +604,7 @@
         ${["1st", "2nd", "3rd", "4th"].map((p) =>
           `<div class="stat"><div class="v" style="color:${colors[p]}">${placeCount(cid, p)}</div><div class="l">${p}</div></div>`
         ).join("")}
-        <div class="stat"><div class="v">${fmt(earned[0])}</div><div class="l">Core Selectors</div></div>
+        <div class="stat"><div class="v">${fmt(earned[0])}</div><div class="l">Core Selector Shards</div></div>
         <div class="stat"><div class="v">${fmt(earned[1])}</div><div class="l">S-Shards</div></div>`;
     };
 

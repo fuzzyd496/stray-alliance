@@ -239,10 +239,10 @@
       </div></footer>`);
 
     const btn = document.getElementById("themeBtn");
+    // Dark by default; the head snippet on each page applies this before first
+    // paint — this is just a fallback and keeps the toggle in sync.
     const urlTheme = new URLSearchParams(location.search).get("theme");
-    const saved = urlTheme || localStorage.getItem("sa-theme");
-    if (saved) document.documentElement.dataset.theme = saved;
-    else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) document.documentElement.dataset.theme = "dark";
+    document.documentElement.dataset.theme = urlTheme || localStorage.getItem("sa-theme") || "dark";
     btn.addEventListener("click", () => {
       const cur = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
       document.documentElement.dataset.theme = cur;

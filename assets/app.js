@@ -235,6 +235,7 @@
       ["soc.html", META.soc.name, "soc"],
       ["history.html", "LME History", "history"],
       ["players.html", "Players", "players"],
+      ["shoutouts.html", "Shoutouts", "shoutouts"],
     ];
     const links = nav.map(([href, label, id]) => {
       let cls = id === page ? "on" : "";
@@ -718,5 +719,129 @@
     if (deepPlayer && playerHistory(cid, deepPlayer).length) { showDetail(deepPlayer); deepPlayer = null; }
   }
 
-  window.SA = { initHome, initClan, initHistory, initPlayers };
+  /* ---------- shoutouts ---------- */
+
+  // Per-player aggregates for the award cards. Current roster only.
+  function computeAwards(cid) {
+    const weeks = clanWeeks(cid);
+    const n = weeks.length;
+    const map = new Map();
+
+    weeks.forEach((week, wi) => {
+      const rankOf = new Map(p1Board(week).map((r) => [r.name, r]));
+      const dayRank = [0, 1, 2].map((d) => {
+        const b = dayBoard(week, d);
+        return b && new Map(b.map((r) => [r.name, r]));
+      });
+      week.players.forEach((p) => {
+        let s = map.get(p.name);
+        if (!s) {
+          s = { name: p.name, weeks: 0, lastIdx: -1, possible: 0, made: 0, gapSum: 0, gapDays: 0, p1Hist: [], full: [] };
+          map.set(p.name, s);
+        }
+        s.weeks++;
+        s.lastIdx = wi;
+        s.p1Hist.push({ wi, p1: p.p1 });
+        const pr = rankOf.get(p.name);
+        let tracked = 0, hit = 0;
+        s.possible++; // P1 hit is always possible
+        if (p.p1 > 0) s.made++;
+        [0, 1, 2].forEach((d) => {
+          if (!week.dayTracked[d]) return;
+          tracked++;
+          s.possible++;
+          const v = p.days[d];
+          if (v > 0) {
+            hit++;
+            s.made++;
+            const dr = dayRank[d] && dayRank[d].get(p.name);
+            // + means finishing higher in battle than raw P1 strength predicts
+            if (dr && pr) { s.gapSum += pr.rank - dr.rank; s.gapDays++; }
+          }
+        });
+        // same scale as the participation dots: 2 full, 1 partial, 0 none
+        s.full.push(tracked > 0 ? (hit === tracked ? 2 : hit > 0 ? 1 : 0) : (p.p1 > 0 ? 2 : p.p1 === 0 ? 0 : null));
+      });
+    });
+
+    const latestRank = n ? new Map(p1Board(weeks[n - 1]).map((r) => [r.name, r])) : new Map();
+    const roster = [...map.values()].filter((s) => s.lastIdx === n - 1);
+    roster.forEach((s) => {
+      const cur = latestRank.get(s.name);
+      s.curP1 = cur ? cur.score : null;
+      s.curRank = cur ? cur.rank : null;
+      s.rate = s.possible ? s.made / s.possible : 0;
+      s.avgGap = s.gapDays ? s.gapSum / s.gapDays : null;
+      s.streak = 0;
+      for (let i = s.full.length - 1; i >= 0 && s.full[i] === 2; i--) s.streak++;
+      // P1 growth over the last 6 weeks
+      const now = s.p1Hist[s.p1Hist.length - 1];
+      const then = [...s.p1Hist].reverse().find((h) => h.wi <= n - 7 && h.p1 > 0);
+      s.growth = now && now.p1 > 0 && then ? (100 * (now.p1 - then.p1)) / then.p1 : null;
+      s.growthFrom = then ? then.p1 : null;
+    });
+
+    const top = (list, sortFn) => list.slice().sort(sortFn).slice(0, 3);
+    return {
+      consistent: top(roster.filter((s) => s.weeks >= 8), (a, b) => b.rate - a.rate || b.weeks - a.weeks),
+      optimized: top(roster.filter((s) => s.weeks >= 8 && s.gapDays >= 10 && s.avgGap > 0), (a, b) => b.avgGap - a.avgGap),
+      improved: top(roster.filter((s) => s.growth != null && s.weeks >= 6), (a, b) => b.growth - a.growth),
+      iron: top(roster.filter((s) => s.streak >= 2), (a, b) => b.streak - a.streak || b.weeks - a.weeks),
+      rising: top(roster.filter((s) => s.weeks < 8 && s.curRank != null), (a, b) => a.curRank - b.curRank || b.rate - a.rate),
+    };
+  }
+
+  function initShoutouts() {
+    renderChrome("shoutouts");
+    const root = document.getElementById("app");
+
+    const AWARDS = [
+      { key: "consistent", emoji: "🎯", title: "Most Consistent", crit: "Highest hit rate, P1 + battle days combined · min 8 weeks",
+        stat: (s) => `${Math.round(s.rate * 100)}% of ${s.possible} possible hits` },
+      { key: "optimized", emoji: "🧠", title: "Most Optimized", crit: "Finishes highest in Battle vs their P1 strength · min 8 weeks",
+        stat: (s) => `+${s.avgGap.toFixed(1)} spots vs P1 rank (#${s.curRank} P1)` },
+      { key: "improved", emoji: "📈", title: "Most Improved", crit: "Biggest P1 gain over the last 6 weeks",
+        stat: (s) => `+${s.growth.toFixed(1)}% (${fmt(s.growthFrom)} → ${fmt(s.curP1)})` },
+      { key: "iron", emoji: "🐾", title: "Iron Cat", crit: "Longest active full-participation streak",
+        stat: (s) => `${s.streak} weeks and counting` },
+      { key: "rising", emoji: "⭐", title: "Rising Star", crit: "Best newcomer, under 8 weeks on the roster",
+        stat: (s) => `#${s.curRank} in P1 after ${s.weeks} week${s.weeks === 1 ? "" : "s"}` },
+    ];
+
+    function awardCard(cid, a, entries) {
+      let body;
+      if (!entries.length) {
+        body = '<p class="note" style="margin-bottom:0">No qualifiers right now.</p>';
+      } else {
+        const [w, ...rest] = entries;
+        body = `
+          <div style="font-size:17px;font-weight:800;margin:2px 0">${playerLink(cid, w.name)}</div>
+          <div><span class="pill ${cid}">${a.stat(w)}</span></div>
+          ${rest.length ? `<p class="note" style="margin:10px 0 0">${rest.map((r, i) =>
+            `${i + 2}. ${esc(r.name)} — ${a.stat(r)}`).join("<br>")}</p>` : ""}`;
+      }
+      return `<div class="card accent-${cid}">
+        <h2>${a.emoji} ${a.title}</h2>
+        <p class="sub" style="margin-bottom:10px">${a.crit}</p>
+        ${body}
+      </div>`;
+    }
+
+    const section = (cid) => {
+      const awards = computeAwards(cid);
+      return `
+        <h2 style="display:flex;align-items:center;gap:10px;margin:26px 0 14px;font-size:19px">
+          <span class="badge ${cid}">${META[cid].mono}</span>${esc(META[cid].name)}</h2>
+        <div class="grid cols-3">${AWARDS.map((a) => awardCard(cid, a, awards[a.key])).join("")}</div>`;
+    };
+
+    root.innerHTML = `
+      <h1 class="page-title">Shoutouts</h1>
+      <p class="page-sub">Automatic weekly awards, straight from the numbers — updated with every LME.</p>
+      ${section("apaw")}
+      <div class="spacer"></div>
+      ${section("soc")}`;
+  }
+
+  window.SA = { initHome, initClan, initHistory, initPlayers, initShoutouts };
 })();

@@ -49,4 +49,6 @@ cutoffs, boss totals, participation, trends) are computed in the browser from `d
 - `history.html` — all weeks, both clans
 - `players.html` — per-player stats, participation, weekly history (player names elsewhere
   on the site link here, e.g. `players.html#apaw:PlayerName`)
+- `shoutouts.html` — automatic weekly awards per clan (Most Consistent, Most Optimized,
+  Most Improved, Iron Cat, Rising Star), all derived from the weekly scores
 - `tools/convert.py` — Excel → `data/data.js` converter (requires Python + openpyxl)

@@ -35,15 +35,52 @@ def cell_num(v):
     return int(float(s)) if s and s.replace(".", "").isdigit() else None
 
 
+def read_results(ws):
+    """Parse the Results sheet: per-week placement plus optional
+    Emblems / Medals / Tickets columns.
+
+    Columns default to A=date, B=place, C=emblems, D=medals, E=tickets.
+    A header row naming any of those (in any order) overrides the defaults —
+    unnamed columns keep their default only if not claimed by a header.
+    Non-numeric cells (like a stray date) are ignored safely.
+    """
+    rows = list(ws.iter_rows(values_only=True))
+    cols = {"place": 1, "emblems": 2, "medals": 3, "tickets": 4}
+    for row in rows:
+        header = {str(c).strip().lower(): i for i, c in enumerate(row) if isinstance(c, str)}
+        hit = {k: i for k, i in header.items() if k in ("place", "placement", "emblems", "medals", "tickets")}
+        if hit:
+            claimed = set(hit.values())
+            cols = {k: (i if i not in claimed else None) for k, i in cols.items()}
+            for k, i in hit.items():
+                cols["place" if k == "placement" else k] = i
+            break
+
+    def cell(row, key):
+        i = cols.get(key)
+        return row[i] if i is not None and len(row) > i else None
+
+    results = {}
+    for row in rows:
+        d = row[0]
+        if not isinstance(d, (datetime, date)):
+            continue
+        place = cell(row, "place")
+        results[d.strftime("%Y-%m-%d")] = {
+            "placement": str(place).strip() if place else None,
+            "emblems": cell_num(cell(row, "emblems")),
+            "medals": cell_num(cell(row, "medals")),
+            "tickets": cell_num(cell(row, "tickets")),
+        }
+    return results
+
+
 def read_clan(path, clan_id):
     wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
 
-    placements = {}
+    results = {}
     if "Results" in wb.sheetnames:
-        for row in wb["Results"].iter_rows(values_only=True):
-            d, place = row[0], row[1] if len(row) > 1 else None
-            if isinstance(d, (datetime, date)) and place:
-                placements[d.strftime("%Y-%m-%d")] = str(place).strip()
+        results = read_results(wb["Results"])
 
     weeks = []
     for name in wb.sheetnames:
@@ -76,9 +113,13 @@ def read_clan(path, clan_id):
             blanks = sum(1 for p in players if p["days"][d] is None)
             day_tracked.append(not (n > 0 and blanks >= n - 1))
 
+        res = results.get(name, {})
         weeks.append({
             "date": name,
-            "placement": placements.get(name),
+            "placement": res.get("placement"),
+            "emblems": res.get("emblems"),
+            "medals": res.get("medals"),
+            "tickets": res.get("tickets"),
             "dayTracked": day_tracked,
             "bossLevels": boss_levels,  # legacy: boss level faced, early weeks only
             "players": players,
@@ -86,7 +127,9 @@ def read_clan(path, clan_id):
 
     wb.close()
     weeks.sort(key=lambda w: w["date"])
-    return {"id": clan_id, "weeks": weeks}
+    # current ticket count = most recent week that has one recorded
+    tickets = next((w["tickets"] for w in reversed(weeks) if w["tickets"] is not None), None)
+    return {"id": clan_id, "weeks": weeks, "tickets": tickets}
 
 
 def main():

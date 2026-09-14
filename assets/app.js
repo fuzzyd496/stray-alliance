@@ -41,6 +41,18 @@
   function latestWeek(cid) { const w = clanWeeks(cid); return w[w.length - 1] || null; }
   function manualWeek(cid, date) { return (MANUAL.weeks[cid] || {})[date] || null; }
 
+  // emblems/medals/tickets come from the Excel Results sheet (in data.js),
+  // with data/manual.js kept as a fallback for anything not recorded there
+  function weekStat(cid, week, key) {
+    if (week[key] != null) return week[key];
+    const mw = manualWeek(cid, week.date);
+    return mw && mw[key] != null ? mw[key] : null;
+  }
+  function clanTickets(cid) {
+    const t = DATA.clans[cid] && DATA.clans[cid].tickets;
+    return t != null ? t : MANUAL.tickets[cid];
+  }
+
   // P1 leaderboard for a week: sorted desc, rank + counting flag
   function p1Board(week) {
     const rows = week.players
@@ -255,8 +267,8 @@
   function clanCard(cid, week) {
     const m = META[cid];
     const s = weekSummary(week);
-    const tickets = MANUAL.tickets[cid];
-    const mw = manualWeek(cid, week.date);
+    const tickets = clanTickets(cid);
+    const emblems = weekStat(cid, week, "emblems");
     return `
       <div class="card accent-${cid}">
         <h2><span class="badge ${cid}">${m.mono}</span>
@@ -269,7 +281,7 @@
         </div>
         <div class="stats">
           <div class="stat"><div class="v">${placeChip(week.placement)}</div><div class="l">Placement</div></div>
-          <div class="stat"><div class="v">${mw && mw.emblems != null ? mw.emblems : "—"}</div><div class="l">Emblems</div></div>
+          <div class="stat"><div class="v">${emblems != null ? emblems : "—"}</div><div class="l">Emblems</div></div>
           <div class="stat"><div class="v">${tickets != null ? tickets : "—"}</div><div class="l">Tickets</div></div>
         </div>
       </div>`;
@@ -339,14 +351,14 @@
       CLAN_IDS.map((cid) => {
         const w = clanWeeks(cid).find((x) => x.date === d);
         if (!w) return "";
-        const mw = manualWeek(cid, d) || {};
         const s = weekSummary(w);
+        const emb = weekStat(cid, w, "emblems"), med = weekStat(cid, w, "medals");
         return `<tr>
           <td>${fmtDate(d)}</td>
           <td><span class="badge sm ${cid}">${META[cid].mono}</span></td>
           <td>${placeChip(w.placement)}</td>
-          <td class="num">${mw.emblems != null ? mw.emblems : "—"}</td>
-          <td class="num">${mw.medals != null ? fmt(mw.medals) : "—"}</td>
+          <td class="num">${emb != null ? emb : "—"}</td>
+          <td class="num">${med != null ? fmt(med) : "—"}</td>
           <td class="num">${fmt(s.bossSent)}</td>
         </tr>`;
       })
@@ -422,7 +434,7 @@
       const week = weeks[sel];
       const s = weekSummary(week);
       const board = p1Board(week);
-      const tickets = MANUAL.tickets[cid];
+      const tickets = week.tickets != null ? week.tickets : (sel === weeks.length - 1 ? clanTickets(cid) : null);
 
       // combined weekly table: P1 + battle days
       const dayB = [0, 1, 2].map((d) => dayBoard(week, d));
@@ -476,7 +488,7 @@
             <div class="stat"><div class="v">${fmt(s.bossSent)}</div><div class="l">P1 Boss Sent</div></div>
             <div class="stat"><div class="v">${fmt(s.cutoff)}</div><div class="l">Top-30 Cutoff</div></div>
             <div class="stat"><div class="v">${placeChip(week.placement)}</div><div class="l">Placement</div></div>
-            <div class="stat"><div class="v">${sel === weeks.length - 1 && tickets != null ? tickets : "—"}</div><div class="l">Tickets</div></div>
+            <div class="stat"><div class="v">${tickets != null ? tickets : "—"}</div><div class="l">Tickets</div></div>
           </div>
         </div>
         <div class="spacer"></div>
@@ -532,13 +544,13 @@
           const w = clanWeeks(cid).find((x) => x.date === d);
           if (!w) return "";
           const s = weekSummary(w);
-          const mw = manualWeek(cid, d) || {};
+          const emb = weekStat(cid, w, "emblems"), med = weekStat(cid, w, "medals");
           return `<tr>
             <td>${fmtDate(d, true)}</td>
             <td><span class="badge sm ${cid}">${META[cid].mono}</span></td>
             <td>${placeChip(w.placement)}</td>
-            <td class="num">${mw.emblems != null ? mw.emblems : "—"}</td>
-            <td class="num">${mw.medals != null ? fmt(mw.medals) : "—"}</td>
+            <td class="num">${emb != null ? emb : "—"}</td>
+            <td class="num">${med != null ? fmt(med) : "—"}</td>
             <td class="num">${fmt(s.bossSent)}</td>
             <td class="num">${fmt(s.cutoff)}</td>
             <td class="num">${s.members}</td>

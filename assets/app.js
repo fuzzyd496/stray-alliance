@@ -591,13 +591,21 @@
     }
 
     const placeCount = (cid, p) => clanWeeks(cid).filter((w) => w.placement === p).length;
+    // weekly LME rewards by placement: [core selector shards, s-shards]
+    const REWARDS = { "1st": [10, 20], "2nd": [8, 15], "3rd": [7, 10], "4th": [6, 6] };
     const placeStats = (cid) => {
       const colors = { "1st": "var(--good)", "2nd": "var(--soc)", "3rd": "#b07c1f", "4th": "var(--bad)" };
+      const earned = ["1st", "2nd", "3rd", "4th"].reduce((t, p) => {
+        const n = placeCount(cid, p);
+        return [t[0] + n * REWARDS[p][0], t[1] + n * REWARDS[p][1]];
+      }, [0, 0]);
       return `
         <div class="stat"><div class="v">${clanWeeks(cid).length}</div><div class="l">Weeks</div></div>
         ${["1st", "2nd", "3rd", "4th"].map((p) =>
           `<div class="stat"><div class="v" style="color:${colors[p]}">${placeCount(cid, p)}</div><div class="l">${p}</div></div>`
-        ).join("")}`;
+        ).join("")}
+        <div class="stat"><div class="v">${fmt(earned[0])}</div><div class="l">Core Selectors</div></div>
+        <div class="stat"><div class="v">${fmt(earned[1])}</div><div class="l">S-Shards</div></div>`;
     };
 
     root.innerHTML = `

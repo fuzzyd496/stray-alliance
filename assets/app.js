@@ -148,6 +148,7 @@
         avgBattle: avg(s.battle),
         bestBattle: s.battle.length ? Math.max(...s.battle) : null,
         top30Battle: s.top30Battle,
+        battleDaysTracked: s.battleDaysTracked,
         partPct: s.battleDaysTracked ? Math.round((100 * s.battleDaysHit) / s.battleDaysTracked) : null,
         recent: s.recent.slice(-8),
       };
@@ -650,17 +651,16 @@
           <td class="rank">${p.curRank || "—"}</td>
           <td>${esc(p.name)}${p.onRoster ? "" : ' <span class="pill faint">former</span>'}</td>
           <td class="num">${fmt(p.curP1)}</td>
-          <td class="num">${fmt(p.avgP1)}</td>
           <td class="num">${fmt(p.bestP1)}</td>
           <td class="num">${p.top30P1}/${p.weeks}</td>
-          <td class="num">${fmt(p.avgBattle)}</td>
+          <td class="num">${p.battleDaysTracked ? `${p.top30Battle}/${p.battleDaysTracked}` : "—"}</td>
           <td class="num">${p.partPct != null ? p.partPct + "%" : "—"}</td>
           <td>${dotsHtml(p.recent)}</td>
         </tr>`).join("");
 
       root.innerHTML = `
         <h1 class="page-title">Players</h1>
-        <p class="page-sub">Individual P1 strength, battle averages and participation. Click a player for weekly history.</p>
+        <p class="page-sub">Individual P1 strength, Top-30 appearances and participation. Click a player for weekly history.</p>
         <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
           <div class="tabs">
             <button id="tabA" class="${cid === "apaw" ? "on apaw" : ""}">${META.apaw.name}</button>
@@ -670,8 +670,8 @@
         </div>
         <div class="card">
           <div class="tbl-wrap"><table class="tbl">
-            <thead><tr><th class="rank">#</th><th>Player</th><th class="num">P1 Now</th><th class="num">P1 Avg</th><th class="num">P1 Best</th>
-              <th class="num">Top-30 P1</th><th class="num">Battle Avg</th><th class="num">Part.</th><th>Last 8 Weeks</th></tr></thead>
+            <thead><tr><th class="rank">#</th><th>Player</th><th class="num">P1 Now</th><th class="num">P1 Best</th>
+              <th class="num">Top-30 P1</th><th class="num">Top-30 Battle</th><th class="num">Part.</th><th>Last 8 Weeks</th></tr></thead>
             <tbody>${rows}</tbody></table></div>
           <p class="note" style="margin-bottom:0"><span class="dot" style="display:inline-block;vertical-align:middle"></span> full participation ·
             <span class="dot part" style="display:inline-block;vertical-align:middle"></span> partial ·

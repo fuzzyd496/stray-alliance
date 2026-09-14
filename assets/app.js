@@ -781,15 +781,28 @@
       s.growthFrom = then ? then.p1 : null;
     });
 
-    const top = (list, sortFn) => list.slice().sort(sortFn).slice(0, 3);
+    // top 3, expanded if more than three are tied for first
+    const top = (list, key) => {
+      const sorted = list.slice().sort(AWARD_SORTS[key]);
+      const tied = sorted.filter((e) => AWARD_SORTS[key](e, sorted[0]) === 0).length;
+      return sorted.slice(0, Math.max(3, tied));
+    };
     return {
-      consistent: top(roster.filter((s) => s.weeks >= 8), (a, b) => b.rate - a.rate || b.weeks - a.weeks),
-      optimized: top(roster.filter((s) => s.weeks >= 8 && s.gapDays >= 10 && s.avgGap > 0), (a, b) => b.avgGap - a.avgGap),
-      improved: top(roster.filter((s) => s.growth != null && s.weeks >= 6), (a, b) => b.growth - a.growth),
-      iron: top(roster.filter((s) => s.streak >= 2), (a, b) => b.streak - a.streak || b.weeks - a.weeks),
-      rising: top(roster.filter((s) => s.weeks < 8 && s.curRank != null), (a, b) => a.curRank - b.curRank || b.rate - a.rate),
+      consistent: top(roster.filter((s) => s.weeks >= 8), "consistent"),
+      optimized: top(roster.filter((s) => s.weeks >= 8 && s.gapDays >= 10 && s.avgGap > 0), "optimized"),
+      improved: top(roster.filter((s) => s.growth != null && s.weeks >= 6), "improved"),
+      iron: top(roster.filter((s) => s.streak >= 2), "iron"),
+      rising: top(roster.filter((s) => s.weeks < 8 && s.curRank != null), "rising"),
     };
   }
+
+  const AWARD_SORTS = {
+    consistent: (a, b) => b.rate - a.rate || b.weeks - a.weeks,
+    optimized: (a, b) => b.avgGap - a.avgGap,
+    improved: (a, b) => b.growth - a.growth,
+    iron: (a, b) => b.streak - a.streak || b.weeks - a.weeks,
+    rising: (a, b) => a.curRank - b.curRank || b.rate - a.rate,
+  };
 
   function initShoutouts() {
     renderChrome("shoutouts");
@@ -813,12 +826,15 @@
       if (!entries.length) {
         body = '<p class="note" style="margin-bottom:0">No qualifiers right now.</p>';
       } else {
-        const [w, ...rest] = entries;
+        const cmp = AWARD_SORTS[a.key];
+        const winners = entries.filter((e) => cmp(e, entries[0]) === 0);
+        const rest = entries.slice(winners.length);
         body = `
-          <div style="font-size:17px;font-weight:800;margin:2px 0">${playerLink(cid, w.name)}</div>
-          <div><span class="pill ${cid}">${a.stat(w)}</span></div>
+          <div style="font-size:17px;font-weight:800;margin:2px 0">${winners.map((w) =>
+            playerLink(cid, w.name)).join(' <span style="color:var(--text-faint)">·</span> ')}</div>
+          <div><span class="pill ${cid}">${a.stat(entries[0])}</span></div>
           ${rest.length ? `<p class="note" style="margin:10px 0 0">${rest.map((r, i) =>
-            `${i + 2}. ${esc(r.name)} — ${a.stat(r)}`).join("<br>")}</p>` : ""}`;
+            `${i + winners.length + 1}. ${esc(r.name)} — ${a.stat(r)}`).join("<br>")}</p>` : ""}`;
       }
       return `<div class="card accent-${cid}">
         <h2>${a.emoji} ${a.title}</h2>

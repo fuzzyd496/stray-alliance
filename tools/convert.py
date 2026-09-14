@@ -35,25 +35,31 @@ def cell_num(v):
     return int(float(s)) if s and s.replace(".", "").isdigit() else None
 
 
-def read_results(ws):
-    """Parse the Results sheet: per-week placement plus optional
-    Emblems / Medals / Tickets columns.
+HEADER_ALIASES = {
+    "place": "place", "placement": "place",
+    "tickets used": "used", "used": "used",
+    "tickets remaining": "left", "tickets left": "left",
+    "remaining": "left", "left": "left", "tickets": "left",
+}
 
-    Columns default to A=date, B=place, C=emblems, D=medals, E=tickets.
-    A header row naming any of those (in any order) overrides the defaults —
-    unnamed columns keep their default only if not claimed by a header.
-    Non-numeric cells (like a stray date) are ignored safely.
+
+def read_results(ws):
+    """Parse the Results sheet: per-week placement plus optional ticket columns.
+
+    Columns default to A=date, B=place, C=tickets used, D=tickets remaining.
+    A header row naming any of those (see HEADER_ALIASES, any order) overrides
+    the defaults — unnamed columns keep their default only if not claimed by a
+    header. Non-numeric cells (like a stray date) are ignored safely.
     """
     rows = list(ws.iter_rows(values_only=True))
-    cols = {"place": 1, "emblems": 2, "medals": 3, "tickets": 4}
+    cols = {"place": 1, "used": 2, "left": 3}
     for row in rows:
         header = {str(c).strip().lower(): i for i, c in enumerate(row) if isinstance(c, str)}
-        hit = {k: i for k, i in header.items() if k in ("place", "placement", "emblems", "medals", "tickets")}
+        hit = {HEADER_ALIASES[k]: i for k, i in header.items() if k in HEADER_ALIASES}
         if hit:
             claimed = set(hit.values())
             cols = {k: (i if i not in claimed else None) for k, i in cols.items()}
-            for k, i in hit.items():
-                cols["place" if k == "placement" else k] = i
+            cols.update(hit)
             break
 
     def cell(row, key):
@@ -68,9 +74,8 @@ def read_results(ws):
         place = cell(row, "place")
         results[d.strftime("%Y-%m-%d")] = {
             "placement": str(place).strip() if place else None,
-            "emblems": cell_num(cell(row, "emblems")),
-            "medals": cell_num(cell(row, "medals")),
-            "tickets": cell_num(cell(row, "tickets")),
+            "ticketsUsed": cell_num(cell(row, "used")),
+            "ticketsLeft": cell_num(cell(row, "left")),
         }
     return results
 
@@ -117,9 +122,8 @@ def read_clan(path, clan_id):
         weeks.append({
             "date": name,
             "placement": res.get("placement"),
-            "emblems": res.get("emblems"),
-            "medals": res.get("medals"),
-            "tickets": res.get("tickets"),
+            "ticketsUsed": res.get("ticketsUsed"),
+            "ticketsLeft": res.get("ticketsLeft"),
             "dayTracked": day_tracked,
             "bossLevels": boss_levels,  # legacy: boss level faced, early weeks only
             "players": players,
@@ -127,8 +131,8 @@ def read_clan(path, clan_id):
 
     wb.close()
     weeks.sort(key=lambda w: w["date"])
-    # current ticket count = most recent week that has one recorded
-    tickets = next((w["tickets"] for w in reversed(weeks) if w["tickets"] is not None), None)
+    # current ticket count = most recent week with a remaining count recorded
+    tickets = next((w["ticketsLeft"] for w in reversed(weeks) if w["ticketsLeft"] is not None), None)
     return {"id": clan_id, "weeks": weeks, "tickets": tickets}
 
 

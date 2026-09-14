@@ -19,11 +19,11 @@ cutoffs, boss totals, participation, trends) are computed in the browser from `d
    By default it looks for the two workbooks one directory above this folder;
    pass paths as arguments to override.
 
-3. (Optional) Record **Emblems / Medals / Tickets** in the Results sheet of each
-   workbook: columns C / D / E next to Date and Place. Or add a header row naming
-   the columns (`Emblems`, `Medals`, `Tickets`) and they can be in any order —
-   the converter finds them by name. Tickets means the count on hand when you
-   update; the site shows the most recent value.
+3. (Optional) Record **Tickets Used / Tickets Remaining** in the Results sheet of
+   each workbook: columns C / D next to Date and Place. Or add a header row naming
+   the columns (`Tickets Used`, `Tickets Remaining`) and they can be in any order —
+   the converter finds them by name. The site shows tickets used per week and the
+   most recent remaining count as the clan's current tickets.
 4. (Optional) Record opponent names and daily cleared/held results by editing
    [data/manual.js](data/manual.js). Everything optional; missing values show as "—".
 5. Commit and push. GitHub Pages redeploys automatically.

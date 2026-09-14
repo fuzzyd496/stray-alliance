@@ -41,13 +41,7 @@
   function latestWeek(cid) { const w = clanWeeks(cid); return w[w.length - 1] || null; }
   function manualWeek(cid, date) { return (MANUAL.weeks[cid] || {})[date] || null; }
 
-  // emblems/medals/tickets come from the Excel Results sheet (in data.js),
-  // with data/manual.js kept as a fallback for anything not recorded there
-  function weekStat(cid, week, key) {
-    if (week[key] != null) return week[key];
-    const mw = manualWeek(cid, week.date);
-    return mw && mw[key] != null ? mw[key] : null;
-  }
+  // ticket columns come from the Excel Results sheet (via data.js)
   function clanTickets(cid) {
     const t = DATA.clans[cid] && DATA.clans[cid].tickets;
     return t != null ? t : MANUAL.tickets[cid];
@@ -267,8 +261,7 @@
   function clanCard(cid, week) {
     const m = META[cid];
     const s = weekSummary(week);
-    const tickets = clanTickets(cid);
-    const emblems = weekStat(cid, week, "emblems");
+    const tickets = week.ticketsLeft != null ? week.ticketsLeft : clanTickets(cid);
     return `
       <div class="card accent-${cid}">
         <h2><span class="badge ${cid}">${m.mono}</span>
@@ -281,8 +274,8 @@
         </div>
         <div class="stats">
           <div class="stat"><div class="v">${placeChip(week.placement)}</div><div class="l">Placement</div></div>
-          <div class="stat"><div class="v">${emblems != null ? emblems : "—"}</div><div class="l">Emblems</div></div>
-          <div class="stat"><div class="v">${tickets != null ? tickets : "—"}</div><div class="l">Tickets</div></div>
+          <div class="stat"><div class="v">${week.ticketsUsed != null ? week.ticketsUsed : "—"}</div><div class="l">Tickets Used</div></div>
+          <div class="stat"><div class="v">${tickets != null ? tickets : "—"}</div><div class="l">Tickets Left</div></div>
         </div>
       </div>`;
   }
@@ -352,13 +345,11 @@
         const w = clanWeeks(cid).find((x) => x.date === d);
         if (!w) return "";
         const s = weekSummary(w);
-        const emb = weekStat(cid, w, "emblems"), med = weekStat(cid, w, "medals");
         return `<tr>
           <td>${fmtDate(d)}</td>
           <td><span class="badge sm ${cid}">${META[cid].mono}</span></td>
           <td>${placeChip(w.placement)}</td>
-          <td class="num">${emb != null ? emb : "—"}</td>
-          <td class="num">${med != null ? fmt(med) : "—"}</td>
+          <td class="num">${w.ticketsUsed != null ? w.ticketsUsed : "—"}</td>
           <td class="num">${fmt(s.bossSent)}</td>
         </tr>`;
       })
@@ -395,8 +386,8 @@
         </div>
         <div class="card">
           <h2>Recent LMEs</h2>
-          <p class="sub">Emblems &amp; medals appear for weeks recorded in <code>data/manual.js</code> · <a href="history.html">full history →</a></p>
-          <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Week</th><th>Clan</th><th>Place</th><th class="num">Emblems</th><th class="num">Medals</th><th class="num">P1 Boss</th></tr></thead>
+          <p class="sub">Last six weeks, both clans · <a href="history.html">full history →</a></p>
+          <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Week</th><th>Clan</th><th>Place</th><th class="num">Tickets Used</th><th class="num">P1 Boss</th></tr></thead>
           <tbody>${recentRows}</tbody></table></div>
         </div>
       </div>
@@ -434,7 +425,7 @@
       const week = weeks[sel];
       const s = weekSummary(week);
       const board = p1Board(week);
-      const tickets = week.tickets != null ? week.tickets : (sel === weeks.length - 1 ? clanTickets(cid) : null);
+      const ticketsLeft = week.ticketsLeft != null ? week.ticketsLeft : (sel === weeks.length - 1 ? clanTickets(cid) : null);
 
       // combined weekly table: P1 + battle days
       const dayB = [0, 1, 2].map((d) => dayBoard(week, d));
@@ -488,7 +479,8 @@
             <div class="stat"><div class="v">${fmt(s.bossSent)}</div><div class="l">P1 Boss Sent</div></div>
             <div class="stat"><div class="v">${fmt(s.cutoff)}</div><div class="l">Top-30 Cutoff</div></div>
             <div class="stat"><div class="v">${placeChip(week.placement)}</div><div class="l">Placement</div></div>
-            <div class="stat"><div class="v">${tickets != null ? tickets : "—"}</div><div class="l">Tickets</div></div>
+            <div class="stat"><div class="v">${week.ticketsUsed != null ? week.ticketsUsed : "—"}</div><div class="l">Tickets Used</div></div>
+            <div class="stat"><div class="v">${ticketsLeft != null ? ticketsLeft : "—"}</div><div class="l">Tickets Left</div></div>
           </div>
         </div>
         <div class="spacer"></div>
@@ -544,13 +536,11 @@
           const w = clanWeeks(cid).find((x) => x.date === d);
           if (!w) return "";
           const s = weekSummary(w);
-          const emb = weekStat(cid, w, "emblems"), med = weekStat(cid, w, "medals");
           return `<tr>
             <td>${fmtDate(d, true)}</td>
             <td><span class="badge sm ${cid}">${META[cid].mono}</span></td>
             <td>${placeChip(w.placement)}</td>
-            <td class="num">${emb != null ? emb : "—"}</td>
-            <td class="num">${med != null ? fmt(med) : "—"}</td>
+            <td class="num">${w.ticketsUsed != null ? w.ticketsUsed : "—"}</td>
             <td class="num">${fmt(s.bossSent)}</td>
             <td class="num">${fmt(s.cutoff)}</td>
             <td class="num">${s.members}</td>
@@ -589,7 +579,7 @@
 
     root.innerHTML = `
       <h1 class="page-title">LME History</h1>
-      <p class="page-sub">Every tracked Lunar Mine Expedition. Emblems &amp; medals appear for weeks recorded going forward.</p>
+      <p class="page-sub">Every tracked Lunar Mine Expedition. Tickets used appears for weeks recorded going forward.</p>
 
       <div class="tabs">
         <button id="fAll">All Clans</button>
@@ -611,7 +601,7 @@
       <div class="card">
         <h2>All Results</h2>
         <div class="tbl-wrap"><table class="tbl">
-          <thead><tr><th>Week</th><th>Clan</th><th>Place</th><th class="num">Emblems</th><th class="num">Medals</th><th class="num">P1 Boss</th><th class="num">Cutoff</th><th class="num">Members</th></tr></thead>
+          <thead><tr><th>Week</th><th>Clan</th><th>Place</th><th class="num">Tickets Used</th><th class="num">P1 Boss</th><th class="num">Cutoff</th><th class="num">Members</th></tr></thead>
           <tbody id="histRows"></tbody></table></div>
       </div>`;
 

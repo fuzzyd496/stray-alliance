@@ -112,17 +112,20 @@
           const r = rankOf.get(p.name);
           if (r) { s.p1Ranks.push(r.rank); if (r.counting) s.top30P1++; }
         }
-        let hitAll = true, anyTracked = false;
+        let hit = 0, tracked = 0;
         [0, 1, 2].forEach((d) => {
           if (!week.dayTracked[d]) return;
-          anyTracked = true;
+          tracked++;
           s.battleDaysTracked++;
           const v = p.days[d];
-          if (v != null && v > 0) { s.battleDaysHit++; s.battle.push(v); } else { hitAll = false; }
+          if (v != null && v > 0) { hit++; s.battleDaysHit++; s.battle.push(v); }
           const dr = dayRank[d] && dayRank[d].get(p.name);
           if (dr && dr.counting) s.top30Battle++;
         });
-        s.recent.push(anyTracked ? (hitAll ? 1 : 0) : null); // 1 full, 0 missed something, null untracked week
+        // 2 full, 1 partial, 0 none, null no data.
+        // Blowout weeks (battle untracked) fall back to P1 participation.
+        if (tracked > 0) s.recent.push(hit === tracked ? 2 : hit > 0 ? 1 : 0);
+        else s.recent.push(p.p1 > 0 ? 2 : p.p1 === 0 ? 0 : null);
       });
     });
 
@@ -312,7 +315,8 @@
   }
 
   function dotsHtml(recent) {
-    return `<span class="dots">${recent.map((r) => `<span class="dot ${r === 1 ? "" : r === 0 ? "miss" : "na"}"></span>`).join("")}</span>`;
+    return `<span class="dots">${recent.map((r) =>
+      `<span class="dot ${r === 2 ? "" : r === 1 ? "part" : r === 0 ? "miss" : "na"}"></span>`).join("")}</span>`;
   }
 
   /* ---------- pages ---------- */
@@ -669,9 +673,11 @@
             <thead><tr><th class="rank">#</th><th>Player</th><th class="num">P1 Now</th><th class="num">P1 Avg</th><th class="num">P1 Best</th>
               <th class="num">Top-30 P1</th><th class="num">Battle Avg</th><th class="num">Part.</th><th>Last 8 Weeks</th></tr></thead>
             <tbody>${rows}</tbody></table></div>
-          <p class="note" style="margin-bottom:0"><span class="dot" style="display:inline-block;vertical-align:middle"></span> hit all tracked battle days ·
-            <span class="dot miss" style="display:inline-block;vertical-align:middle"></span> missed a tracked day ·
-            <span class="dot na" style="display:inline-block;vertical-align:middle"></span> battle not tracked (blowout week)</p>
+          <p class="note" style="margin-bottom:0"><span class="dot" style="display:inline-block;vertical-align:middle"></span> full participation ·
+            <span class="dot part" style="display:inline-block;vertical-align:middle"></span> partial ·
+            <span class="dot miss" style="display:inline-block;vertical-align:middle"></span> none ·
+            <span class="dot na" style="display:inline-block;vertical-align:middle"></span> no data
+            <span style="margin-left:6px">(blowout weeks where battle wasn’t tracked count P1 as participation)</span></p>
         </div>
         <div class="spacer"></div>
         <div id="detail"></div>`;

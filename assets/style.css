@@ -254,6 +254,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 /* participation dots */
 .dots { display: inline-flex; gap: 3px; }
 .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--good); }
+.dot.part { background: #d9a621; }
 .dot.miss { background: var(--bad); }
 .dot.na { background: var(--line); }
 

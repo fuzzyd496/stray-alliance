@@ -787,7 +787,15 @@
       const tied = sorted.filter((e) => AWARD_SORTS[key](e, sorted[0]) === 0).length;
       return sorted.slice(0, Math.max(3, tied));
     };
+    // Clan MVP: highest P1 + battle total in the current week
+    const lw = weeks[n - 1];
+    const mvp = lw ? lw.players.map((p) => {
+      const battle = p.days.reduce((sum, v, d) => sum + (lw.dayTracked[d] && v ? v : 0), 0);
+      return { name: p.name, total: (p.p1 || 0) + battle, p1: p.p1 || 0, battle };
+    }).filter((e) => e.total > 0) : [];
+
     return {
+      mvp: top(mvp, "mvp"),
       consistent: top(roster.filter((s) => s.weeks >= 8), "consistent"),
       optimized: top(roster.filter((s) => s.weeks >= 8 && s.gapDays >= 10 && s.avgGap > 0), "optimized"),
       improved: top(roster.filter((s) => s.growth != null && s.weeks >= 6), "improved"),
@@ -797,6 +805,7 @@
   }
 
   const AWARD_SORTS = {
+    mvp: (a, b) => b.total - a.total,
     consistent: (a, b) => b.rate - a.rate || b.weeks - a.weeks,
     optimized: (a, b) => b.avgGap - a.avgGap,
     improved: (a, b) => b.growth - a.growth,
@@ -809,6 +818,8 @@
     const root = document.getElementById("app");
 
     const AWARDS = [
+      { key: "mvp", emoji: "👑", title: "Clan MVP", crit: "Highest combined score this week — P1 + all battle days",
+        stat: (s) => `${fmt(s.total)} (${fmt(s.p1)} P1 + ${fmt(s.battle)} battle)` },
       { key: "consistent", emoji: "🎯", title: "Most Consistent", crit: "Highest hit rate, P1 + battle days combined · min 8 weeks",
         stat: (s) => `${Math.round(s.rate * 100)}% of ${s.possible} possible hits` },
       { key: "optimized", emoji: "🧠", title: "Most Optimized", crit: "Finishes highest in Battle vs their P1 strength · min 8 weeks",
